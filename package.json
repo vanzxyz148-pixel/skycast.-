@@ -1,0 +1,9 @@
+{
+  "name": "skycast-skybot",
+  "version": "2.0.0",
+  "private": true,
+  "description": "SkyCast (SkyBot Asisten Cuaca) dengan fitur masukan pengguna dan dashboard admin",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=22.5.0" }
+}
