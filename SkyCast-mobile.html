@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SkyCast: Prakiraan Cuaca</title>
+<meta name="theme-color" content="#0a1f44">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--navy:#0a1f44;--blue:#1e6fd9;--sky:#7cc4ff;--r:24px;font-family:'Manrope',system-ui,-apple-system,'Segoe UI',sans-serif}
+*{box-sizing:border-box;margin:0}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+html,body{max-width:100%;overflow-x:hidden}
+main>*,#dash>*,.top>*,.card,.hero{min-width:0}
+[hidden]{display:none!important}
+body{min-height:100vh;color:#fff;line-height:1.5;background:linear-gradient(135deg,#0a1f44,#1457b8 55%,#4aa3ff) fixed}
+body[data-theme=night]{background:linear-gradient(135deg,#040b1d,#0a1f44 55%,#1c3d78) fixed}
+.glass{background-color:var(--glass);transition:background-color .8s ease;-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);border:1px solid var(--glass-b);border-radius:var(--r);box-shadow:0 10px 30px rgba(2,12,40,.28)}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none}
+:focus-visible{outline:2px solid var(--sky);outline-offset:2px}
+.muted{opacity:.72;font-weight:500}
+.btn{background:#fff;color:var(--navy);padding:9px 20px;border-radius:999px;font-weight:700}
+header{position:sticky;top:12px;z-index:10;display:flex;align-items:center;gap:10px;max-width:1100px;margin:12px auto 0;width:calc(100% - 24px);padding:10px 14px}
+.brand{display:flex;align-items:center;gap:10px;margin-right:auto;font-weight:800;font-size:1.25rem}
+.logo{width:34px;height:34px;border-radius:12px;background:linear-gradient(135deg,#fff,var(--sky));display:grid;place-items:center;font-size:18px}
+#search{display:flex;flex:0 1 360px;background:rgba(255,255,255,.16);border-radius:999px;padding:2px}
+#search input{flex:1;min-width:0;background:none;border:0;padding:8px 14px;outline:0}
+#search input::placeholder{color:rgba(255,255,255,.7)}
+#search button,.ib{width:40px;height:40px;border-radius:50%;font-size:17px}
+.ib{background:rgba(255,255,255,.12)}
+main{max-width:1100px;margin:16px auto 110px;padding:0 12px;display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
+#dash{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;animation:in .6s ease}
+@keyframes in{from{opacity:0;transform:translateY(12px)}}
+.top{display:grid;gap:16px;grid-template-columns:minmax(0,1fr)}
+.hero{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:28px}
+h1{font-size:clamp(1.4rem,4vw,2rem)}
+#temp{display:block;margin:6px 0;font-size:clamp(4.5rem,16vw,7.5rem);font-weight:800;line-height:1;letter-spacing:-.05em}
+#icon{width:clamp(110px,24vw,190px);filter:drop-shadow(0 8px 16px rgba(0,0,0,.25))}
+.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.stat{padding:16px;display:flex;flex-direction:column;gap:2px}
+.stat span{font-size:1.4rem}.stat small{opacity:.75}.stat b{font-size:1.1rem;overflow-wrap:anywhere}
+.card{padding:20px}.card h2{font-size:1.05rem;margin-bottom:12px}
+.scroll{display:flex;gap:10px;overflow-x:auto;padding-bottom:6px}
+.hr{flex:0 0 80px;display:flex;flex-direction:column;align-items:center;padding:10px 4px;border-radius:18px;background:rgba(255,255,255,.1)}
+.hr img{width:46px}
+#chart svg{width:100%;height:auto;display:block}
+#chart text{fill:#fff;font-size:13px;font-weight:700}
+#chart .ax{font-weight:500;opacity:.7;font-size:12px}
+.day{display:grid;grid-template-columns:1fr 46px 1.4fr auto;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.12)}
+.day:last-child{border:0}
+.error{padding:22px;text-align:center;display:grid;gap:12px;justify-items:center}
+@media(min-width:900px){.top{grid-template-columns:1.1fr 1fr}.stats{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:600px){#search{order:3;flex:1 1 100%}header{flex-wrap:wrap;padding:10px 12px}.brand{font-size:1.1rem}.day{grid-template-columns:1fr 40px auto}.dd{display:none}.hero{padding:20px}.card{padding:16px}.stat{padding:12px}.hr{flex-basis:70px}}
+.loader{position:fixed;inset:0;z-index:30;display:grid;place-items:center;background:rgba(10,31,68,.55)}
+.spinner{width:52px;height:52px;border-radius:50%;border:5px solid rgba(255,255,255,.25);border-top-color:#fff;animation:spin .9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.offline{position:sticky;top:0;z-index:40;background:#f5a623;color:#2b1d00;text-align:center;padding:8px;font-weight:700}
+dialog{margin:auto;border:0;border-radius:var(--r);padding:24px;width:min(360px,92vw);background:#0f2a5c;color:#fff;display:none}
+dialog[open]{display:grid;gap:14px}
+dialog::backdrop{background:rgba(0,10,40,.6)}
+dialog label{display:grid;gap:6px;font-weight:500}
+dialog select{width:100%;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.1)}
+dialog option{color:var(--navy)}
+.fab{position:fixed;right:20px;bottom:calc(20px + env(safe-area-inset-bottom,0px));z-index:20;display:flex;align-items:center;gap:8px;height:52px;padding:0 20px;border-radius:999px;font-weight:800;background:#fff;color:var(--navy);box-shadow:0 10px 30px rgba(2,12,40,.35)}
+dialog#feedback{width:min(420px,92vw);max-height:90vh;max-height:90dvh;overflow-y:auto}
+#fbForm{display:grid;gap:14px}
+dialog input,dialog textarea{width:100%;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.1)}
+dialog textarea{min-height:120px;resize:vertical}
+dialog input::placeholder,dialog textarea::placeholder{color:rgba(255,255,255,.6)}
+dialog h2+.muted{font-size:.9rem}
+.hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
+.fbrow{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
+.btn.ghost{background:rgba(255,255,255,.14);color:#fff}
+.btn:disabled{opacity:.6;cursor:progress}
+.fbmsg{min-height:1.4em;font-size:.9rem;font-weight:700}
+.fbmsg.bad{color:#ffb4b4}
+.cnt{font-size:.8rem;opacity:.7;text-align:right}
+.toast{position:fixed;left:50%;bottom:calc(88px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:60;max-width:calc(100vw - 32px);padding:12px 18px;border-radius:16px;background:#0f2a5c;border:1px solid rgba(255,255,255,.3);box-shadow:0 10px 30px rgba(2,12,40,.4);font-weight:700;text-align:center;animation:in .3s ease}
+/* ---------- Tema siang / malam (otomatis dari waktu lokal lokasi) ---------- */
+:root{--glass:rgba(255,255,255,.12);--glass-b:rgba(255,255,255,.22)}
+body[data-theme=day]{--glass:rgba(8,44,106,.5);--glass-b:rgba(255,255,255,.32);background:linear-gradient(170deg,#1c7be6 0%,#4ba3f5 48%,#72b9f8 100%) fixed}
+body[data-theme=day][data-w=rain]{background:linear-gradient(170deg,#36659f 0%,#5a88b8 55%,#7ea3c9 100%) fixed}
+body[data-theme=night]{--glass:rgba(8,18,46,.58);--glass-b:rgba(150,180,255,.18)}
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;opacity:0;transition:opacity 1.2s ease}
+body[data-theme=day]::before{opacity:1;background:radial-gradient(circle at 82% 6%,rgba(255,214,140,.5),rgba(255,214,140,0) 46%),linear-gradient(rgba(255,196,110,.07),rgba(255,196,110,.07))}
+body[data-theme=night]::before{opacity:1;background:linear-gradient(rgba(2,6,22,.22),rgba(2,6,22,.22))}
+#scene{position:fixed;left:0;top:0;z-index:0;pointer-events:none}
+main{position:relative;z-index:1}
+body{text-shadow:0 1px 3px rgba(0,20,60,.35)}
+</style>
+</head>
+<body>
+<canvas id="scene" aria-hidden="true"></canvas>
+<div id="offline" class="offline" hidden>Tidak ada koneksi internet. Data yang tampil mungkin sudah lama.</div>
+<header class="glass">
+  <div class="brand"><div class="logo">🌤️</div><span>SkyCast</span></div>
+  <form id="search" role="search"><input id="q" placeholder="Cari kota, mis. Bandung" autocomplete="off" aria-label="Cari kota" required><button aria-label="Cari">🔍</button></form>
+  <button id="locate" class="ib" aria-label="Gunakan lokasi saya">📍</button>
+  <button id="settingsBtn" class="ib" aria-label="Pengaturan">⚙️</button>
+</header>
+<main>
+  <div id="error" class="glass error" hidden></div>
+  <div id="dash" hidden>
+    <div class="top">
+      <section class="hero glass">
+        <div>
+          <h1 id="city"></h1><p id="date" class="muted"></p><span id="temp"></span>
+          <p id="desc" style="font-size:1.2rem;font-weight:700"></p><p id="feels" class="muted"></p><p id="range" class="muted"></p><p id="area" class="muted" style="font-size:.85rem"></p>
+        </div>
+        <img id="icon" alt="">
+      </section>
+      <section id="stats" class="stats"></section>
+    </div>
+    <section class="card glass"><h2>Prakiraan per jam</h2><div id="hourly" class="scroll"></div></section>
+    <section class="card glass"><h2>Perubahan suhu</h2><div id="chart"></div></section>
+    <section class="card glass"><h2 id="dailyTitle">Prakiraan harian</h2><div id="daily"></div></section>
+  </div>
+</main>
+<div id="loader" class="loader"><div class="spinner" role="status" aria-label="Memuat"></div></div>
+<dialog id="settings">
+  <h2>Pengaturan</h2>
+  <label>Satuan suhu<select id="unit"><option value="C">Celsius (°C)</option><option value="F">Fahrenheit (°F)</option></select></label>
+  <label>Satuan kecepatan angin<select id="wind"><option value="kmh">km/jam</option><option value="ms">m/s</option></select></label>
+  <label>Animasi latar cuaca<select id="anim"><option value="1">Aktif</option><option value="0">Nonaktif (hemat baterai)</option></select></label>
+  <button id="closeSettings" class="btn">Selesai</button>
+</dialog>
+<button id="fbBtn" class="fab" aria-label="Kirim masukan" title="Kirim masukan"><span aria-hidden="true">📝</span>Masukan</button>
+<dialog id="feedback" aria-labelledby="fbTitle">
+  <h2 id="fbTitle">Kirim masukan</h2>
+  <p class="muted">Kritik, saran, atau laporan masalah tentang SkyCast.</p>
+  <form id="fbForm" novalidate>
+    <label>Nama (opsional)<input id="fbName" name="name" maxlength="60" autocomplete="name" placeholder="Nama Anda"></label>
+    <label>Kategori<select id="fbCat" name="category">
+      <option value="kritik">Kritik</option><option value="saran">Saran</option><option value="bug">Laporan bug</option><option value="fitur">Permintaan fitur</option><option value="lainnya">Lainnya</option>
+    </select></label>
+    <label>Pesan<textarea id="fbText" name="message" maxlength="2000" required placeholder="Tulis masukan Anda di sini…"></textarea></label>
+    <div class="cnt" id="fbCount" aria-hidden="true">0 / 2000</div>
+    <input id="fbHp" class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+    <p id="fbMsg" class="fbmsg" role="status" aria-live="polite"></p>
+    <div class="fbrow"><button type="button" id="fbCancel" class="btn ghost">Batal</button><button type="submit" id="fbSend" class="btn">Kirim masukan</button></div>
+  </form>
+</dialog>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+<script>
+/* ===== KONFIGURASI: hanya API cuaca. Fitur AI chatbot sudah dihapus. ===== */
+const CONFIG = {
+  WEATHER_API_KEY: '310c1adeacc140d9ee41ea54ca69f28a',
+};
+
+const $ = (s) => document.querySelector(s);
+const jp = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
+const sv = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+const S = { d: null, last: null, unit: jp('unit', 'C'), wind: jp('wind', 'kmh') };
+// Bersihkan sisa data chatbot lama di browser (riwayat chat, key AI, URL proxy)
+try { ['chat', 'xkiro_key', 'skybot_proxy'].forEach((k) => localStorage.removeItem(k)); } catch {}
+// Tema awal sementara dari jam perangkat; langsung diganti waktu lokal lokasi begitu data cuaca tersedia
+document.body.dataset.theme = (() => { const h = new Date().getHours(); return h < 6 || h >= 18 ? 'night' : 'day'; })();
+const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+const T = (c) => Math.round(S.unit === 'F' ? (c * 9) / 5 + 32 : c) + '°';
+const Wd = (v) => (S.wind === 'ms' ? v.toFixed(1) + ' m/s' : Math.round(v * 3.6) + ' km/j');
+const fmt = (ts, off, opt) => new Date((ts + off) * 1000).toLocaleString('id-ID', { timeZone: 'UTC', ...opt });
+const hm = { hour: '2-digit', minute: '2-digit' };
+const img = (i) => `https://openweathermap.org/img/wn/${i}@2x.png`;
+const pct = (p) => Math.round((p || 0) * 100) + '%';
+const uv = (v) => (v == null ? 'Tidak tersedia' : Math.round(v) + (v < 3 ? ' (rendah)' : v < 6 ? ' (sedang)' : v < 8 ? ' (tinggi)' : v < 11 ? ' (sangat tinggi)' : ' (ekstrem)'));
+
+/* ---------- API OpenWeatherMap (langsung dari browser) ---------- */
+async function owm(path, params) {
+  const u = new URL('https://api.openweathermap.org' + path);
+  for (const [k, v] of Object.entries({ ...params, appid: CONFIG.WEATHER_API_KEY })) u.searchParams.set(k, v);
+  const r = await fetch(u);
+  if (!r.ok) throw Object.assign(new Error('owm'), { status: r.status });
+  return r.json();
+}
+const weatherError = (s) => s === 401 ? 'API key cuaca ditolak. Key baru bisa butuh beberapa jam untuk aktif.' : s === 429 ? 'Batas permintaan API cuaca tercapai. Coba lagi nanti.' : 'Gagal mengambil data cuaca.';
+
+function dailyFromForecast(list, off) {
+  const hr = (x) => new Date((x.dt + off) * 1000).getUTCHours(), days = {};
+  for (const x of list) (days[new Date((x.dt + off) * 1000).toISOString().slice(0, 10)] ||= []).push(x);
+  return Object.values(days).slice(0, 6).map((g) => {
+    const m = g.reduce((a, b) => (Math.abs(hr(b) - 12) < Math.abs(hr(a) - 12) ? b : a));
+    return { dt: m.dt, min: Math.min(...g.map((x) => x.main.temp_min)), max: Math.max(...g.map((x) => x.main.temp_max)), icon: m.weather[0].icon.replace('n', 'd'), desc: m.weather[0].description, pop: Math.max(...g.map((x) => x.pop || 0)) };
+  });
+}
+
+async function getWeather({ q, lat, lon }) {
+  try {
+    let place;
+    if (q) {
+      const g = await owm('/geo/1.0/direct', { q: q.slice(0, 100), limit: 1 });
+      if (!g.length) throw new Error('Kota tidak ditemukan. Coba nama lain atau ejaan berbeda.');
+      place = g[0]; lat = place.lat; lon = place.lon;
+    } else {
+      place = (await owm('/geo/1.0/reverse', { lat, lon, limit: 1 }).catch(() => []))[0];
+    }
+    const base = { lat, lon, units: 'metric', lang: 'id' };
+    const [cur, fc, one] = await Promise.all([
+      owm('/data/2.5/weather', base), owm('/data/2.5/forecast', base),
+      owm('/data/3.0/onecall', { ...base, exclude: 'minutely' }).catch(() => null),
+    ]);
+    const hourly = one
+      ? one.hourly.slice(0, 12).map((x) => ({ dt: x.dt, temp: x.temp, icon: x.weather[0].icon, pop: x.pop }))
+      : fc.list.slice(0, 8).map((x) => ({ dt: x.dt, temp: x.main.temp, icon: x.weather[0].icon, pop: x.pop }));
+    const daily = one
+      ? one.daily.slice(0, 7).map((x) => ({ dt: x.dt, min: x.temp.min, max: x.temp.max, icon: x.weather[0].icon, desc: x.weather[0].description, pop: x.pop }))
+      : dailyFromForecast(fc.list, cur.timezone);
+    return {
+      lat: +lat, lon: +lon, tz: cur.timezone, full: !!one, query: q || '',
+      city: place?.local_names?.id || place?.name || cur.name, country: place?.country || cur.sys.country,
+      cur: { dt: cur.dt, temp: cur.main.temp, feels: cur.main.feels_like, humidity: cur.main.humidity, pressure: cur.main.pressure, wind: cur.wind.speed, desc: cur.weather[0].description, icon: cur.weather[0].icon, sunrise: cur.sys.sunrise, sunset: cur.sys.sunset, uvi: one?.current?.uvi ?? null, id: cur.weather[0].id, clouds: cur.clouds?.all ?? 0 },
+      hourly, daily, alerts: (one?.alerts || []).slice(0, 3).map((a) => ({ event: a.event, sender: a.sender_name })),
+    };
+  } catch (e) {
+    if (e.status) throw new Error(weatherError(e.status));
+    throw e;
+  }
+}
+
+/* ---------- Tampilan cuaca ---------- */
+function showErr(m) {
+  const e = $('#error');
+  e.innerHTML = `<p>${m}</p><button id="retry" class="btn">Coba lagi</button>`;
+  e.hidden = false;
+  $('#retry').onclick = () => load(S.last || { q: 'Jakarta' });
+}
+async function load(params) {
+  $('#loader').hidden = false; $('#error').hidden = true;
+  try {
+    S.d = await getWeather(params);
+    S.d.area = await classifyArea(S.d);
+    S.last = { lat: S.d.lat, lon: S.d.lon }; sv('last', S.last);
+    render();
+  } catch (e) {
+    showErr(e instanceof TypeError ? (navigator.onLine ? 'Tidak dapat menghubungi layanan cuaca. Coba lagi sebentar.' : 'Tidak ada koneksi internet.') : e.message);
+  } finally { $('#loader').hidden = true; }
+}
+
+function chart(h, o) {
+  const v = h.map((x) => (S.unit === 'F' ? (x.temp * 9) / 5 + 32 : x.temp));
+  const mn = Math.min(...v), mx = Math.max(...v), W = 600, H = 170, p = 28;
+  const X = (i) => p + (i * (W - 2 * p)) / (h.length - 1 || 1);
+  const Y = (t) => H - p - ((t - mn) / (mx - mn || 1)) * (H - 2 * p - 14);
+  const pts = v.map((t, i) => [X(i), Y(t)]);
+  const line = pts.map((q, i) => (i ? 'L' : 'M') + q[0].toFixed(1) + ' ' + q[1].toFixed(1)).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Grafik suhu per jam"><defs><linearGradient id="g" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#7cc4ff" stop-opacity=".5"/><stop offset="1" stop-color="#7cc4ff" stop-opacity="0"/></linearGradient></defs>
+  <path d="${line}L${pts.at(-1)[0].toFixed(1)} ${H - p}L${pts[0][0].toFixed(1)} ${H - p}Z" fill="url(#g)"/><path d="${line}" fill="none" stroke="#7cc4ff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  ${pts.map((q, i) => `<circle cx="${q[0]}" cy="${q[1]}" r="4" fill="#fff"/><text x="${q[0]}" y="${q[1] - 10}" text-anchor="middle">${Math.round(v[i])}°</text><text x="${q[0]}" y="${H - 8}" text-anchor="middle" class="ax">${fmt(h[i].dt, o, { hour: '2-digit' })}</text>`).join('')}</svg>`;
+}
+
+/* ---------- Tema siang / malam: waktu lokal LOKASI (zona waktu + matahari terbit/terbenam dari API) ---------- */
+function isNight(d, now = Date.now() / 1000) {
+  const D = 86400, loc = (t) => (((t + d.tz) % D) + D) % D, c = d.cur;
+  if (c.sunrise && c.sunset && c.sunrise !== c.sunset) {
+    const r = loc(c.sunrise), s = loc(c.sunset), n = loc(now);
+    return r < s ? !(n >= r && n < s) : !(n >= r || n < s);
+  }
+  const h = Math.floor(loc(now) / 3600); // cadangan bila data matahari tidak tersedia
+  return h < 6 || h >= 18;
+}
+const iconNow = (d) => d.cur.icon.slice(0, 2) + (isNight(d) ? 'n' : 'd');
+function syncTheme() {
+  const d = S.d, night = isNight(d), b = document.body;
+  b.dataset.theme = night ? 'night' : 'day';
+  b.dataset.w = night ? 'night' : /^(09|10|11)/.test(d.cur.icon) ? 'rain' : 'day';
+  const m = document.querySelector('meta[name=theme-color]'); if (m) m.content = night ? '#0a1f44' : '#1c7be6';
+  const u = img(iconNow(d)), ic = $('#icon'); if (ic.getAttribute('src') !== u) ic.src = u;
+  Scene.set(d);
+}
+
+function render() {
+  const d = S.d, c = d.cur, o = d.tz, t0 = d.daily[0];
+  let country = d.country;
+  try { country = new Intl.DisplayNames(['id'], { type: 'region' }).of(d.country); } catch {}
+  $('#dash').hidden = false;
+  $('#area').textContent = AREA[d.area] || '';
+  $('#city').textContent = `${d.city}, ${country}`;
+  $('#temp').textContent = T(c.temp);
+  $('#desc').textContent = cap(c.desc);
+  $('#feels').textContent = `Terasa seperti ${T(c.feels)}`;
+  $('#range').textContent = `Hari ini tertinggi ${T(t0.max)}, terendah ${T(t0.min)}`;
+  $('#icon').alt = c.desc;
+  syncTheme();
+  tick();
+  $('#stats').innerHTML = [
+    ['💧', 'Kelembapan', c.humidity + '%'], ['💨', 'Kecepatan angin', Wd(c.wind)],
+    ['🧭', 'Tekanan udara', c.pressure + ' hPa'], ['🔆', 'UV Index', uv(c.uvi)],
+    ['🌅', 'Matahari terbit', fmt(c.sunrise, o, hm)], ['🌇', 'Matahari terbenam', fmt(c.sunset, o, hm)],
+  ].map(([i, l, v]) => `<div class="stat glass"><span>${i}</span><small>${l}</small><b>${v}</b></div>`).join('');
+  $('#hourly').innerHTML = d.hourly.map((h, i) => `<div class="hr"><small>${i === 0 && d.full ? 'Sekarang' : fmt(h.dt, o, hm)}</small><img src="${img(h.icon)}" alt=""><b>${T(h.temp)}</b><small>💧 ${pct(h.pop)}</small></div>`).join('');
+  $('#chart').innerHTML = chart(d.hourly, o);
+  $('#dailyTitle').textContent = `Prakiraan ${d.daily.length} hari ke depan`;
+  $('#daily').innerHTML = d.daily.map((x) => `<div class="day"><span>${cap(fmt(x.dt, o, { weekday: 'long' }))}</span><img src="${img(x.icon)}" alt=""><span class="muted dd">${cap(x.desc)}, hujan ${pct(x.pop)}</span><b>${T(x.max)} <span class="muted">${T(x.min)}</span></b></div>`).join('');
+}
+function tick() {
+  if (!S.d) return;
+  syncTheme(); // tema berganti otomatis saat waktu lokal lokasi melewati matahari terbit/terbenam
+  $('#date').textContent = cap(fmt(Date.now() / 1000, S.d.tz, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }));
+}
+setInterval(tick, 30000);
+
+/* ---------- Kontrol ---------- */
+$('#search').onsubmit = (e) => { e.preventDefault(); const q = $('#q').value.trim(); if (q) load({ q }); };
+$('#locate').onclick = () => {
+  if (!navigator.geolocation) return showErr('Browser ini tidak mendukung geolokasi. Cari nama kota di kolom pencarian.');
+  $('#loader').hidden = false;
+  navigator.geolocation.getCurrentPosition(
+    (p) => load({ lat: p.coords.latitude, lon: p.coords.longitude }),
+    () => { $('#loader').hidden = true; showErr('Izin lokasi ditolak. Izinkan lokasi di browser atau cari nama kota.'); },
+    { timeout: 10000 });
+};
+const dlg = $('#settings');
+$('#settingsBtn').onclick = () => { $('#unit').value = S.unit; $('#wind').value = S.wind; dlg.showModal(); };
+$('#closeSettings').onclick = () => dlg.close();
+$('#unit').onchange = (e) => { S.unit = e.target.value; sv('unit', S.unit); S.d && render(); };
+$('#wind').onchange = (e) => { S.wind = e.target.value; sv('wind', S.wind); S.d && render(); };
+const net = () => { $('#offline').hidden = navigator.onLine; };
+addEventListener('online', () => { net(); S.last && load(S.last); });
+addEventListener('offline', net);
+net();
+
+/* ---------- Masukan pengguna (disimpan di database lewat backend /api/feedback) ---------- */
+const fbDlg = $('#feedback'), fbForm = $('#fbForm'), fbMsg = $('#fbMsg');
+let toastT;
+function toast(m) { const t = $('#toast'); t.textContent = m; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { t.hidden = true; }, 4500); }
+function fbSay(m, bad) { fbMsg.textContent = m || ''; fbMsg.className = 'fbmsg' + (bad ? ' bad' : ''); }
+const fbCount = () => { $('#fbCount').textContent = $('#fbText').value.length + ' / 2000'; };
+$('#fbBtn').onclick = () => { fbSay(''); fbDlg.showModal(); $('#fbText').focus(); };
+$('#fbCancel').onclick = () => fbDlg.close();
+$('#fbText').addEventListener('input', fbCount);
+fbForm.onsubmit = async (e) => {
+  e.preventDefault();
+  const body = { name: $('#fbName').value.trim(), category: $('#fbCat').value, message: $('#fbText').value.trim(), website: $('#fbHp').value };
+  if (!body.message) { fbSay('Pesan tidak boleh kosong.', true); $('#fbText').focus(); return; }
+  const btn = $('#fbSend'); btn.disabled = true; btn.textContent = 'Mengirim…'; fbSay('');
+  try {
+    const r = await fetch('/api/feedback', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok || !d.ok) throw new Error(d.error || (r.status === 429 ? 'Terlalu banyak pengiriman. Coba lagi beberapa menit lagi.' : 'Masukan gagal dikirim. Coba lagi.'));
+    fbForm.reset(); fbCount(); fbDlg.close();
+    toast('Terima kasih! Masukan Anda berhasil dikirim.');
+  } catch (err) {
+    fbSay(err instanceof TypeError ? (navigator.onLine ? 'Tidak dapat menghubungi server masukan. Pastikan SkyCast dibuka lewat server SkyBot.' : 'Tidak ada koneksi internet.') : err.message, true);
+  } finally { btn.disabled = false; btn.textContent = 'Kirim masukan'; }
+};
+
+
+/* ---------- Animasi cuaca & lingkungan (canvas) ---------- */
+S.anim = jp('anim', true);
+const AREA = { city: 'Lingkungan: perkotaan', town: 'Lingkungan: kabupaten / kota kecil', village: 'Lingkungan: pedesaan' };
+const areaCache = {};
+// Jenis wilayah dari data lokasi OpenStreetMap (Nominatim). Kota > kota kecil > desa; "Kabupaten" tidak otomatis dianggap desa.
+async function classifyArea(d) {
+  const k = d.lat.toFixed(2) + ',' + d.lon.toFixed(2);
+  if (areaCache[k]) return areaCache[k];
+  let a = 'town', ok = false;
+  try {
+    const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), 3500);
+    const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&zoom=14&accept-language=id&lat=${d.lat}&lon=${d.lon}`, { signal: ctl.signal });
+    clearTimeout(tm);
+    if (r.ok) {
+      const ad = (await r.json()).address || {};
+      a = ad.city ? 'city' : ad.town ? 'town' : ad.village || ad.hamlet || ad.isolated_dwelling || ad.farm ? 'village' : 'town';
+      if (a === 'village' && /^(kabupaten|kab\.?)\s/i.test(d.query || d.city)) a = 'town';
+      ok = true;
+    }
+  } catch {}
+  if (ok) areaCache[k] = a;
+  return a;
+}
+
+function kind(d) {
+  const c = d.cur, id = c.id, w = c.wind;
+  const k = { area: d.area, night: isNight(d), wind: Math.min(w / 10, 1.6), windy: w >= 8 || id === 771 || id === 781, rain: 0, storm: false, drizzle: false, fog: 0, cover: 2, dark: 0 };
+  if (id >= 200 && id < 300) Object.assign(k, { storm: true, rain: id < 210 ? 120 : 190, cover: 9, dark: .4 });
+  else if (id >= 300 && id < 400) Object.assign(k, { drizzle: true, rain: 45, cover: 6, fog: .22, dark: .12 });
+  else if (id >= 500 && id < 600) Object.assign(k, { rain: id === 500 ? 80 : id === 501 ? 120 : id >= 520 ? 150 : 190, cover: 8, dark: id >= 502 ? .35 : .22 });
+  else if (id >= 700 && id < 800) Object.assign(k, { fog: id === 701 || id === 741 ? .6 : .4, cover: 3 });
+  else k.cover = id === 800 ? 2 : id === 801 ? 3 : id === 802 ? 5 : 7;
+  if (k.cover >= 7 && !k.dark) k.dark = .1;
+  return k;
+}
+
+const Scene = (() => {
+  const cv = $('#scene'), cx = cv.getContext('2d'), bg = document.createElement('canvas'), bx = bg.getContext('2d');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)'), R = (a, b) => a + Math.random() * (b - a);
+  let W = 0, H, gy, dpr, s, st = null, sig = '', raf = 0, last = 0, t = 0, flash = 0, bolt = null, nextBolt = 0, fog = null;
+  let rain = [], clouds = [], leaves = [], cars = [], rip = [], stars = [], trees = [], pud = [];
+  cv.hidden = !S.anim;
+
+  function paintBg() {
+    bx.setTransform(dpr, 0, 0, dpr, 0, 0); bx.clearRect(0, 0, W, H);
+    const dk = st.night || st.dark > .25, A = st.area;
+    const win = (x, y, w, h) => { for (let yy = y + 8 * s; yy < y + h - 8 * s; yy += 14 * s) for (let xx = x + 6 * s; xx < x + w - 8 * s; xx += 11 * s) if (Math.random() < (dk ? .45 : .15)) { bx.fillStyle = dk ? 'rgba(255,214,120,.85)' : 'rgba(190,220,255,.35)'; bx.fillRect(xx, yy, 5 * s, 7 * s); } };
+    const bld = (x, w, h, col) => { bx.fillStyle = col; bx.fillRect(x, gy - h, w, h); win(x, gy - h, w, h); };
+    const house = (x, w, h, col, roof) => { bx.fillStyle = col; bx.fillRect(x, gy - h, w, h); bx.fillStyle = roof; bx.beginPath(); bx.moveTo(x - 5 * s, gy - h); bx.lineTo(x + w / 2, gy - h - w * .45); bx.lineTo(x + w + 5 * s, gy - h); bx.fill(); bx.fillStyle = dk ? 'rgba(255,214,120,.9)' : 'rgba(30,50,90,.6)'; bx.fillRect(x + w * .4, gy - h * .55, w * .2, h * .55); };
+    if (A !== 'village') {
+      const far = A === 'city' ? .38 : .2, near = A === 'city' ? .3 : .13, rd = gy + 9 * s;
+      for (let x = -10; x < W;) { const w = R(28, 56) * s; bld(x, w, R(.4, 1) * H * far, 'rgba(14,45,100,.45)'); x += w + 2; }
+      for (let x = R(-20, 0); x < W;) {
+        if (A === 'town' && Math.random() < .45) { const hw = R(34, 50) * s; house(x, hw, R(26, 38) * s, dk ? '#1a2c50' : '#27427a', '#0b1d42'); x += hw + R(4, 14) * s; continue; }
+        const w = R(34, 70) * s; bld(x, w, R(.45, 1) * H * near, '#0a1c42'); x += w + R(2, 8) * s;
+      }
+      bx.fillStyle = '#16264a'; bx.fillRect(0, gy, W, 9 * s);
+      bx.fillStyle = '#0a1330'; bx.fillRect(0, rd, W, H - rd);
+      if (st.rain) { const g = bx.createLinearGradient(0, rd, 0, H); g.addColorStop(0, 'rgba(180,210,255,.3)'); g.addColorStop(1, 'rgba(180,210,255,.06)'); bx.fillStyle = g; bx.fillRect(0, rd, W, H - rd); }
+      bx.fillStyle = 'rgba(255,255,255,.35)'; for (let x = 0; x < W; x += 60 * s) bx.fillRect(x, rd + (H - rd) / 2, 28 * s, 2);
+      for (let x = 70 * s; x < W; x += 170 * s) {
+        bx.fillStyle = '#2a3a60'; bx.fillRect(x, gy - 62 * s, 2.5, 62 * s); bx.fillRect(x, gy - 62 * s, 14 * s, 2.5);
+        if (dk) { const g = bx.createRadialGradient(x + 14 * s, gy - 58 * s, 0, x + 14 * s, gy - 58 * s, 46 * s); g.addColorStop(0, 'rgba(255,225,150,.85)'); g.addColorStop(1, 'rgba(255,225,150,0)'); bx.fillStyle = g; bx.fillRect(x - 40 * s, gy - 110 * s, 110 * s, 110 * s); }
+      }
+    } else {
+      const hill = (b, amp, col, f) => { bx.fillStyle = col; bx.beginPath(); bx.moveTo(0, gy); for (let x = 0; x <= W; x += 10) bx.lineTo(x, b - Math.sin(x / W * Math.PI * f + f) * amp); bx.lineTo(W, gy); bx.fill(); };
+      hill(gy - H * .12, H * .07, 'rgba(24,80,90,.5)', 2.2); hill(gy - H * .04, H * .05, 'rgba(22,100,70,.8)', 3.1);
+      for (let x = R(0, 30); x < W; x += R(110, 190) * s) house(x, R(40, 56) * s, R(26, 36) * s, dk ? '#3a3a4a' : '#d9c9a8', dk ? '#2a1f1f' : '#9c4a35');
+      const g = bx.createLinearGradient(0, gy, 0, H); g.addColorStop(0, '#1f7a46'); g.addColorStop(1, '#0f4a2c'); bx.fillStyle = g; bx.fillRect(0, gy, W, H - gy);
+      bx.strokeStyle = 'rgba(160,230,120,.35)'; bx.lineWidth = 2;
+      for (let i = 1; i < 7; i++) { const y = gy + (H - gy) * Math.pow(i / 7, 1.6); bx.beginPath(); bx.moveTo(0, y); bx.lineTo(W, y); bx.stroke(); }
+      bx.fillStyle = 'rgba(130,100,66,.9)'; bx.beginPath(); bx.moveTo(W * .42, gy); bx.lineTo(W * .58, gy); bx.lineTo(W * .8, H); bx.lineTo(W * .2, H); bx.fill();
+    }
+    pud = st.rain ? Array.from({ length: 5 }, () => ({ x: R(W * .05, W * .95), y: R(gy + 22 * s, H - 8), w: R(50, 110) * s })) : [];
+    bx.fillStyle = 'rgba(170,205,245,.28)'; for (const p of pud) { bx.beginPath(); bx.ellipse(p.x, p.y, p.w, p.w * .12, 0, 0, 7); bx.fill(); }
+  }
+
+  function build() {
+    dpr = Math.min(devicePixelRatio || 1, 1.5); W = innerWidth; H = innerHeight; s = Math.max(.7, Math.min(W / 420, 1.5));
+    for (const c of [cv, bg]) { c.width = W * dpr; c.height = H * dpr; }
+    cv.style.width = W + 'px'; cv.style.height = H + 'px';
+    gy = H * (st.area === 'village' ? .8 : .78); fog = null; rip = []; t = 0; nextBolt = 2;
+    const sm = W < 600, vil = st.area === 'village';
+    rain = Array.from({ length: Math.round(st.rain * (sm ? .6 : 1)) }, () => ({ x: R(0, W), y: R(0, H), v: R(.8, 1.2), e: R(gy + 12 * s, H) }));
+    clouds = Array.from({ length: Math.round(st.cover * (sm ? .8 : 1.2)) }, () => ({ x: R(-100, W), y: R(H * .04, H * .34), r: R(26, 52) * s, v: R(.6, 1.4) }));
+    leaves = st.windy ? Array.from({ length: 14 }, () => ({ x: R(0, W), y: R(gy - H * .3, gy), v: R(.7, 1.5), p: R(0, 6) })) : [];
+    stars = st.night && st.cover < 6 ? Array.from({ length: 50 }, () => ({ x: R(0, W), y: R(0, H * .45), p: R(0, 6) })) : [];
+    cars = vil ? [] : Array.from({ length: sm ? 3 : 5 }, (_, i) => ({ x: R(0, W), d: i % 2 ? 1 : -1, v: R(40, 90), c: ['#e8eef9', '#1e6fd9', '#f5a623', '#d94a4a', '#8fd18f'][i % 5], l: i % 2 }));
+    const n = Math.round(W / (vil ? 120 : 190)) >> (st.area === 'city' ? 1 : 0);
+    trees = Array.from({ length: n }, (_, i) => ({ x: (i + R(.2, .8)) * W / n, h: R(70, 130) * s * (vil ? 1.1 : .8), p: R(0, 6), palm: vil && Math.random() < .4 }));
+    paintBg();
+  }
+
+  function puff(c, col) { cx.fillStyle = col; for (const [dx, k] of [[-1.2, .65], [-.45, 1], [.4, .9], [1.15, .6]]) { cx.beginPath(); cx.arc(c.x + dx * c.r, c.y, c.r * k, 0, 7); cx.fill(); } cx.fillRect(c.x - 1.2 * c.r, c.y, 2.4 * c.r, c.r * .45); }
+
+  function frame(ts) {
+    if (!reduce.matches) raf = requestAnimationFrame(frame);
+    if (ts - last < 33) return;
+    const dt = Math.min((ts - last) / 1000, .1); last = ts; t += dt;
+    cx.setTransform(dpr, 0, 0, dpr, 0, 0); cx.clearRect(0, 0, W, H);
+    const dk = st.night || st.dark > .25, sx = W * .8, sy = H * .13;
+    // matahari + berkas sinar (siang) / bulan + bintang (malam)
+    const sa = st.night || st.rain || st.fog > .3 ? 0 : Math.max(0, (7 - st.cover) / 5);
+    if (sa > 0) {
+      const g = cx.createRadialGradient(sx, sy, 0, sx, sy, 150 * s); g.addColorStop(0, `rgba(255,244,190,${.9 * sa})`); g.addColorStop(.25, `rgba(255,230,150,${.35 * sa})`); g.addColorStop(1, 'rgba(255,230,150,0)');
+      cx.fillStyle = g; cx.fillRect(sx - 160 * s, sy - 160 * s, 320 * s, 320 * s);
+      cx.fillStyle = `rgba(255,250,220,${sa})`; cx.beginPath(); cx.arc(sx, sy, 26 * s, 0, 7); cx.fill();
+      cx.save(); cx.translate(sx, sy); cx.rotate(t * .05); cx.strokeStyle = `rgba(255,240,180,${.25 * sa})`; cx.lineWidth = 3;
+      for (let i = 0; i < 12; i++) { cx.rotate(Math.PI / 6); cx.beginPath(); cx.moveTo(40 * s, 0); cx.lineTo(95 * s, 0); cx.stroke(); } cx.restore();
+      cx.fillStyle = `rgba(255,245,200,${.07 * sa})`;
+      for (let i = 0; i < 3; i++) { cx.beginPath(); cx.moveTo(sx, sy); cx.lineTo(sx - 260 * s - i * 110 * s, gy); cx.lineTo(sx - 170 * s - i * 110 * s, gy); cx.fill(); }
+    } else if (st.night && st.cover < 6) {
+      const g = cx.createRadialGradient(sx, sy, 0, sx, sy, 80 * s); g.addColorStop(0, 'rgba(220,230,255,.5)'); g.addColorStop(1, 'rgba(220,230,255,0)'); cx.fillStyle = g; cx.fillRect(sx - 90 * s, sy - 90 * s, 180 * s, 180 * s);
+      cx.fillStyle = 'rgba(245,248,255,.95)'; cx.beginPath(); cx.arc(sx, sy, 18 * s, 0, 7); cx.fill();
+      for (const q of stars) { cx.fillStyle = `rgba(255,255,255,${.3 + .6 * Math.abs(Math.sin(t + q.p))})`; cx.fillRect(q.x, q.y, 2, 2); }
+    }
+    // awan (lebih cepat saat berangin)
+    const cc = st.storm ? '58,68,92' : st.rain || st.drizzle ? '150,165,190' : dk ? '120,135,170' : '255,255,255', ca = st.storm ? .85 : st.rain ? .65 : .5;
+    for (const c of clouds) { c.x += c.v * (8 + 30 * st.wind) * dt; if (c.x - c.r * 2 > W) c.x = -c.r * 3; puff(c, `rgba(${cc},${ca})`); }
+    cx.drawImage(bg, 0, 0, W, H);
+    // pepohonan bergoyang mengikuti angin
+    for (const tr of trees) {
+      const sw = Math.sin(t * (1.2 + st.wind * 2) + tr.p) * (2 + st.wind * 9) * s * .5, tx = tr.x + sw, ty = gy - tr.h;
+      cx.strokeStyle = '#3b2a1e'; cx.lineWidth = 4 * s; cx.beginPath(); cx.moveTo(tr.x, gy + 2); cx.quadraticCurveTo(tr.x + sw * .3, gy - tr.h * .5, tx, ty); cx.stroke();
+      if (tr.palm) { cx.strokeStyle = '#1f8a4c'; cx.lineWidth = 3 * s; for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2 + sw * .05, l = 34 * s; cx.beginPath(); cx.moveTo(tx, ty); cx.quadraticCurveTo(tx + Math.cos(a) * l * .6, ty - 10 * s, tx + Math.cos(a) * l, ty + Math.sin(a) * l * .5 + 8 * s); cx.stroke(); } }
+      else { cx.fillStyle = dk ? '#14502f' : '#1f7a46'; for (const [dx, dy, r] of [[0, 0, 26], [-18, 12, 20], [18, 12, 20]]) { cx.beginPath(); cx.arc(tx + dx * s, ty + dy * s, r * s, 0, 7); cx.fill(); } }
+    }
+    // kendaraan (kota / kabupaten)
+    for (const c of cars) {
+      c.x += c.d * c.v * dt * (st.rain ? .8 : 1); if (c.x > W + 80) c.x = -80; if (c.x < -80) c.x = W + 80;
+      const rd = gy + 9 * s, y = rd + (H - rd) * (c.l ? .66 : .24), w = 46 * s, h = 14 * s, fx = c.d > 0 ? c.x + w : c.x;
+      if (dk || st.rain) { const g = cx.createLinearGradient(fx, 0, fx + c.d * 80 * s, 0); g.addColorStop(0, 'rgba(255,240,180,.4)'); g.addColorStop(1, 'rgba(255,240,180,0)'); cx.fillStyle = g; cx.beginPath(); cx.moveTo(fx, y - h * .6); cx.lineTo(fx + c.d * 80 * s, y - h * 1.3); cx.lineTo(fx + c.d * 80 * s, y + h * .3); cx.lineTo(fx, y - h * .3); cx.fill(); }
+      cx.fillStyle = c.c; cx.fillRect(c.x, y - h, w, h); cx.fillRect(c.x + w * .22, y - h * 1.7, w * .5, h * .7);
+      cx.fillStyle = 'rgba(10,20,50,.7)'; cx.fillRect(c.x + w * .27, y - h * 1.55, w * .4, h * .45);
+      cx.fillStyle = '#111'; for (const q of [.2, .8]) { cx.beginPath(); cx.arc(c.x + w * q, y, 3.5 * s, 0, 7); cx.fill(); }
+      cx.fillStyle = 'rgba(255,240,180,.95)'; cx.fillRect(c.d > 0 ? c.x + w - 3 : c.x, y - h * .8, 3, 4); cx.fillStyle = '#e33'; cx.fillRect(c.d > 0 ? c.x : c.x + w - 3, y - h * .8, 3, 4);
+      if (st.rain) { cx.fillStyle = 'rgba(190,215,255,.14)'; cx.fillRect(c.x, y + 3, w, h * .6); }
+    }
+    // hujan, genangan, riak
+    if (rain.length) {
+      const sl = (st.windy ? .35 : .12) + st.wind * .15, sp = st.drizzle ? 260 : 700, len = (st.drizzle ? 7 : 15) * s;
+      cx.strokeStyle = st.drizzle ? 'rgba(200,220,245,.45)' : 'rgba(200,225,255,.6)'; cx.lineWidth = st.drizzle ? 1 : 1.4; cx.beginPath();
+      for (const r of rain) {
+        r.y += sp * r.v * dt; r.x += sp * r.v * dt * sl;
+        if (r.y > r.e) { if (rip.length < 36 && Math.random() < .25) rip.push({ x: r.x, y: r.y, k: 0 }); r.y = -20; r.x = R(-60, W); r.e = R(gy + 12 * s, H); }
+        cx.moveTo(r.x, r.y); cx.lineTo(r.x - len * sl, r.y - len);
+      }
+      cx.stroke();
+      if (pud.length && rip.length < 36 && Math.random() < .35) { const p = pud[(Math.random() * pud.length) | 0]; rip.push({ x: p.x + R(-p.w * .8, p.w * .8), y: p.y + R(-p.w * .05, p.w * .05), k: 0 }); }
+      for (let i = rip.length - 1; i >= 0; i--) { const q = rip[i]; q.k += dt * 1.4; if (q.k >= 1) { rip.splice(i, 1); continue; } cx.strokeStyle = `rgba(210,230,255,${(1 - q.k) * .6})`; cx.lineWidth = 1.2; cx.beginPath(); cx.ellipse(q.x, q.y, q.k * 14 * s, q.k * 4 * s, 0, 0, 7); cx.stroke(); }
+    }
+    // kabut bergerak pelan
+    if (st.fog) {
+      if (!fog) { fog = document.createElement('canvas'); fog.width = W * 2; fog.height = H * .4; const f = fog.getContext('2d'); for (let i = 0; i < 16; i++) { const x = i / 16 * W * 2, y = R(.3, .7) * fog.height, r = R(120, 220) * s, g = f.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, 'rgba(235,240,248,.7)'); g.addColorStop(1, 'rgba(235,240,248,0)'); f.fillStyle = g; f.fillRect(x - r, y - r, 2 * r, 2 * r); } }
+      const ox = (t * 12) % (W * 2), fy = gy - fog.height * .75; cx.globalAlpha = Math.min(1, st.fog * 1.4); cx.drawImage(fog, -ox, fy); cx.drawImage(fog, W * 2 - ox, fy); cx.globalAlpha = 1;
+      cx.fillStyle = `rgba(210,220,235,${st.fog * .35})`; cx.fillRect(0, 0, W, H);
+    }
+    // daun beterbangan
+    for (const l of leaves) {
+      l.x += (60 + 160 * st.wind) * l.v * dt; l.y += Math.sin(t * 3 + l.p) * 30 * dt + 8 * dt; if (l.y > gy) l.y = gy - H * .3; if (l.x > W + 10) { l.x = -10; l.y = R(gy - H * .3, gy); }
+      cx.fillStyle = 'rgba(110,190,90,.9)'; cx.save(); cx.translate(l.x, l.y); cx.rotate(t * 3 + l.p); cx.beginPath(); cx.ellipse(0, 0, 5 * s, 2.5 * s, 0, 0, 7); cx.fill(); cx.restore();
+    }
+    if (st.dark) { cx.fillStyle = `rgba(6,14,34,${st.dark * .8})`; cx.fillRect(0, 0, W, H); }
+    // petir: kilat, perubahan cahaya, dan sambaran
+    if (st.storm && t > nextBolt) { flash = 1; nextBolt = t + R(2.5, 7); let x = R(W * .1, W * .9), y = 0; bolt = [[x, y]]; while (y < gy * .75) { x += R(-30, 30) * s; y += R(18, 40) * s; bolt.push([x, y]); } }
+    if (flash > 0) {
+      const f = flash * (Math.random() < .3 ? .4 : 1); cx.fillStyle = `rgba(225,235,255,${f * .45})`; cx.fillRect(0, 0, W, H);
+      if (bolt) { cx.strokeStyle = `rgba(255,255,255,${f})`; cx.lineWidth = 2.5 * s; cx.shadowColor = '#bcd7ff'; cx.shadowBlur = 18; cx.beginPath(); bolt.forEach(([x, y], i) => (i ? cx.lineTo(x, y) : cx.moveTo(x, y))); cx.stroke(); cx.shadowBlur = 0; }
+      flash -= dt * 3.5; if (flash <= 0) bolt = null;
+    }
+  }
+
+  addEventListener('resize', () => { clearTimeout(Scene.rt); Scene.rt = setTimeout(() => { if (st && S.anim && innerWidth !== W) { build(); if (reduce.matches) frame(100); } }, 200); });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { cancelAnimationFrame(raf); raf = 0; }
+    else if (st && S.anim && !raf && !reduce.matches) { last = 0; raf = requestAnimationFrame(frame); }
+  });
+  return {
+    rt: 0,
+    set(d) {
+      if (!S.anim) return;
+      const k = kind(d), g = Object.values(k).join();
+      if (g === sig) return;
+      st = k; sig = g; build();
+      if (reduce.matches) frame(100); else if (!raf) raf = requestAnimationFrame(frame);
+    },
+    toggle(v) {
+      S.anim = v; sv('anim', v); cv.hidden = !v;
+      if (!v) { cancelAnimationFrame(raf); raf = 0; sig = ''; } else if (S.d) this.set(S.d);
+    },
+  };
+})();
+
+$('#settingsBtn').addEventListener('click', () => { $('#anim').value = S.anim ? '1' : '0'; });
+$('#anim').onchange = (e) => Scene.toggle(e.target.value === '1');
+
+// Cuaca dan animasi diperbarui otomatis tiap 10 menit
+setInterval(async () => {
+  if (!S.last || document.hidden || !navigator.onLine) return;
+  try { const d = await getWeather(S.last); d.area = await classifyArea(d); S.d = d; render(); } catch {}
+}, 600000);
+
+/* ---------- Mulai ---------- */
+(function init() {
+  const fallback = () => load(jp('last', null) || { q: 'Jakarta' });
+  if (!navigator.geolocation) return fallback();
+  navigator.geolocation.getCurrentPosition((p) => load({ lat: p.coords.latitude, lon: p.coords.longitude }), fallback, { timeout: 8000 });
+})();
+</script>
+</body>
+</html>
