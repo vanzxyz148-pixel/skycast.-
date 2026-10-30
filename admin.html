@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#0a1f44">
+<title>Admin SkyCast: Masukan Pengguna</title>
+<style nonce="{{NONCE}}">
+:root{--navy:#0a1f44;--blue:#1e6fd9;--sky:#7cc4ff;font-family:'Manrope',system-ui,-apple-system,'Segoe UI',sans-serif}
+*{box-sizing:border-box;margin:0}
+[hidden]{display:none!important}
+body{min-height:100vh;color:#fff;line-height:1.5;background:linear-gradient(135deg,#040b1d,#0a1f44 55%,#1c3d78) fixed;padding:16px}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none}
+:focus-visible{outline:2px solid var(--sky);outline-offset:2px}
+.glass{background:rgba(8,18,46,.58);border:1px solid rgba(150,180,255,.18);border-radius:22px;box-shadow:0 10px 30px rgba(2,12,40,.28)}
+.muted{opacity:.72}
+.btn{background:#fff;color:var(--navy);padding:8px 16px;border-radius:999px;font-weight:700}
+.btn.ghost{background:rgba(255,255,255,.14);color:#fff}
+.btn.danger{background:#ffdede;color:#8a1010}
+.btn:disabled{opacity:.6;cursor:progress}
+input,select{padding:10px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.1)}
+option{color:var(--navy)}
+#login{max-width:380px;margin:12vh auto 0;padding:28px;display:grid;gap:14px}
+#login form{display:grid;gap:14px}
+.err{color:#ffb4b4;font-weight:700;min-height:1.4em}
+#app{max-width:900px;margin:0 auto;display:grid;gap:14px}
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:14px 18px}
+.bar h1{font-size:1.25rem;margin-right:auto}
+.filters{display:flex;flex-wrap:wrap;gap:10px;padding:14px 18px;align-items:center}
+.stats{font-size:.9rem;margin-left:auto}
+#list{display:grid;gap:12px}
+.item{padding:16px 18px;display:grid;gap:10px}
+.item.unread{border-left:4px solid var(--sky)}
+.item.read{opacity:.8}
+.meta{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;font-size:.9rem}
+.badge{padding:3px 12px;border-radius:999px;font-weight:700;font-size:.8rem;background:rgba(124,196,255,.22);border:1px solid rgba(124,196,255,.5)}
+.badge.bug{background:rgba(255,120,120,.22);border-color:rgba(255,140,140,.55)}
+.badge.fitur{background:rgba(170,140,255,.22);border-color:rgba(190,170,255,.55)}
+.badge.kritik{background:rgba(255,190,90,.22);border-color:rgba(255,200,120,.55)}
+.badge.saran{background:rgba(110,220,160,.22);border-color:rgba(130,230,175,.55)}
+.new{font-size:.75rem;font-weight:800;color:var(--navy);background:var(--sky);padding:2px 8px;border-radius:999px}
+.who{font-weight:700}
+.msg{white-space:pre-wrap;overflow-wrap:anywhere}
+.acts{display:flex;flex-wrap:wrap;gap:8px}
+.empty{padding:28px;text-align:center}
+.more{justify-self:center}
+</style>
+</head>
+<body>
+<section id="login" class="glass" hidden>
+  <h1>Admin SkyCast</h1>
+  <p class="muted">Masukkan password admin untuk melihat masukan pengguna.</p>
+  <form id="loginForm">
+    <input id="pw" type="password" autocomplete="current-password" placeholder="Password admin" aria-label="Password admin" required>
+    <p id="loginErr" class="err" role="alert"></p>
+    <button class="btn" id="loginBtn" type="submit">Masuk</button>
+  </form>
+</section>
+
+<div id="app" hidden>
+  <header class="bar glass">
+    <h1>📝 Masukan Pengguna</h1>
+    <span id="stats" class="stats muted"></span>
+    <button id="refresh" class="btn ghost" type="button">Muat ulang</button>
+    <button id="logout" class="btn ghost" type="button">Keluar</button>
+  </header>
+  <section class="filters glass">
+    <label class="muted" for="fCat">Kategori</label>
+    <select id="fCat">
+      <option value="">Semua kategori</option><option value="kritik">Kritik</option><option value="saran">Saran</option><option value="bug">Laporan bug</option><option value="fitur">Permintaan fitur</option><option value="lainnya">Lainnya</option>
+    </select>
+    <label class="muted" for="fStatus">Status</label>
+    <select id="fStatus">
+      <option value="">Semua</option><option value="unread">Belum dibaca</option><option value="read">Sudah dibaca</option>
+    </select>
+  </section>
+  <p id="appErr" class="err" role="alert"></p>
+  <div id="list" aria-live="polite"></div>
+  <button id="more" class="btn more" type="button" hidden>Muat lebih banyak</button>
+</div>
+
+<script nonce="{{NONCE}}">
+const $ = (s) => document.querySelector(s);
+const LABEL = { kritik: 'Kritik', saran: 'Saran', bug: 'Laporan bug', fitur: 'Permintaan fitur', lainnya: 'Lainnya' };
+const PAGE = 50;
+let offset = 0, total = 0;
+
+async function api(path, opt = {}) {
+  const r = await fetch(path, { credentials: 'same-origin', ...opt, headers: { ...(opt.body ? { 'Content-Type': 'application/json' } : {}), ...opt.headers } });
+  const d = await r.json().catch(() => ({}));
+  if (r.status === 401 && path !== '/api/admin/login') { showLogin(); throw new Error('Sesi berakhir. Silakan login lagi.'); }
+  if (!r.ok) throw new Error(d.error || 'Terjadi kesalahan (' + r.status + ').');
+  return d;
+}
+function showLogin() { $('#app').hidden = true; $('#login').hidden = false; $('#pw').value = ''; $('#pw').focus(); }
+function showApp() { $('#login').hidden = true; $('#app').hidden = false; }
+
+const fmtDate = (iso) => new Date(iso).toLocaleString('id-ID', { dateStyle: 'long', timeStyle: 'short' });
+
+function card(x) {
+  const el = document.createElement('article');
+  el.className = 'item glass ' + (x.is_read ? 'read' : 'unread');
+  const meta = document.createElement('div'); meta.className = 'meta';
+  const badge = document.createElement('span'); badge.className = 'badge ' + x.category; badge.textContent = LABEL[x.category] || x.category;
+  const who = document.createElement('span'); who.className = 'who'; who.textContent = x.name || 'Anonim';
+  const when = document.createElement('time'); when.className = 'muted'; when.dateTime = x.created_at; when.textContent = fmtDate(x.created_at);
+  meta.append(badge, who, when);
+  if (!x.is_read) { const n = document.createElement('span'); n.className = 'new'; n.textContent = 'BARU'; meta.append(n); }
+  const msg = document.createElement('p'); msg.className = 'msg'; msg.textContent = x.message; // textContent: aman dari XSS
+  const acts = document.createElement('div'); acts.className = 'acts';
+  const tog = document.createElement('button'); tog.className = 'btn ghost'; tog.type = 'button';
+  tog.textContent = x.is_read ? 'Tandai belum dibaca' : 'Tandai sudah dibaca';
+  tog.onclick = () => act(tog, () => api('/api/admin/feedback/' + x.id, { method: 'PATCH', body: JSON.stringify({ read: !x.is_read }) }));
+  const del = document.createElement('button'); del.className = 'btn danger'; del.type = 'button'; del.textContent = 'Hapus';
+  del.onclick = () => { if (confirm('Hapus masukan ini secara permanen?')) act(del, () => api('/api/admin/feedback/' + x.id, { method: 'DELETE' })); };
+  acts.append(tog, del);
+  el.append(meta, msg, acts);
+  return el;
+}
+async function act(btn, fn) {
+  btn.disabled = true; $('#appErr').textContent = '';
+  try { await fn(); await load(true); } catch (e) { $('#appErr').textContent = e.message; btn.disabled = false; }
+}
+
+async function load(reset) {
+  if (reset) offset = 0;
+  const p = new URLSearchParams({ limit: PAGE, offset });
+  if ($('#fCat').value) p.set('category', $('#fCat').value);
+  if ($('#fStatus').value) p.set('status', $('#fStatus').value);
+  $('#appErr').textContent = '';
+  try {
+    const d = await api('/api/admin/feedback?' + p);
+    showApp();
+    const list = $('#list');
+    if (reset) list.replaceChildren();
+    if (reset && !d.items.length) { const e = document.createElement('p'); e.className = 'empty muted glass'; e.textContent = 'Belum ada masukan yang sesuai filter.'; list.append(e); }
+    for (const x of d.items) list.append(card(x));
+    offset += d.items.length; total = d.total;
+    $('#more').hidden = offset >= total;
+    $('#stats').textContent = d.all + ' masukan, ' + d.unread + ' belum dibaca';
+  } catch (e) { $('#appErr').textContent = e.message; }
+}
+
+$('#loginForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const b = $('#loginBtn'); b.disabled = true; $('#loginErr').textContent = '';
+  try { await api('/api/admin/login', { method: 'POST', body: JSON.stringify({ password: $('#pw').value }) }); $('#pw').value = ''; await load(true); }
+  catch (err) { $('#loginErr').textContent = err.message; }
+  finally { b.disabled = false; }
+};
+$('#logout').onclick = async () => { try { await api('/api/admin/logout', { method: 'POST' }); } catch {} $('#list').replaceChildren(); showLogin(); };
+$('#refresh').onclick = () => load(true);
+$('#more').onclick = () => load(false);
+$('#fCat').onchange = () => load(true);
+$('#fStatus').onchange = () => load(true);
+
+(async () => { // sudah login? tampilkan dashboard, jika tidak tampilkan form login
+  try { await api('/api/admin/session'); await load(true); } catch { showLogin(); }
+})();
+</script>
+</body>
+</html>
